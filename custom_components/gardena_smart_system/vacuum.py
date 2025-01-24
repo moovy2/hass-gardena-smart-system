@@ -3,20 +3,14 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 
-from homeassistant.core import callback
+from homeassistant.const import (
+    ATTR_BATTERY_LEVEL,
+    STATE_IDLE,
+)
 from homeassistant.components.vacuum import (
     StateVacuumEntity,
-    SUPPORT_BATTERY,
-    SUPPORT_RETURN_HOME,
-    SUPPORT_STATE,
-    SUPPORT_STOP,
-    SUPPORT_START,
-    STATE_PAUSED,
-    STATE_CLEANING,
-    STATE_DOCKED,
-    STATE_RETURNING,
-    STATE_ERROR,
-    ATTR_BATTERY_LEVEL,
+    VacuumActivity,
+    VacuumEntityFeature,
 )
 
 from .const import (
@@ -37,7 +31,6 @@ from .const import (
     DOMAIN,
     GARDENA_LOCATION,
 )
-from .sensor import GardenaSensor
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,7 +38,13 @@ _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(minutes=1)
 
 SUPPORT_GARDENA = (
-    SUPPORT_BATTERY | SUPPORT_RETURN_HOME | SUPPORT_STOP | SUPPORT_START | SUPPORT_STATE
+    VacuumEntityFeature.BATTERY |
+    VacuumEntityFeature.PAUSE |
+    VacuumEntityFeature.RETURN_HOME |
+    VacuumEntityFeature.SEND_COMMAND |
+    VacuumEntityFeature.START |
+    VacuumEntityFeature.STATE |
+    VacuumEntityFeature.STOP
 )
 
 
@@ -94,35 +93,38 @@ class GardenaSmartMower(StateVacuumEntity):
         state = self._device.state
         _LOGGER.debug("Mower has state %s", state)
         if state in ["WARNING", "ERROR", "UNAVAILABLE"]:
-            _LOGGER.debug("Mower has an error")
-            self._state = STATE_ERROR
             self._error_message = self._device.last_error_code
+            if self._device.last_error_code == "PARKED_DAILY_LIMIT_REACHED":
+                self._state = VacuumActivity.IDLE
+            else:
+                _LOGGER.debug("Mower has an error")
+                self._state = VacuumActivity.ERROR
         else:
             _LOGGER.debug("Getting mower state")
             activity = self._device.activity
             _LOGGER.debug("Mower has activity %s", activity)
             if activity == "PAUSED":
-                self._state = STATE_PAUSED
+                self._state = VacuumActivity.PAUSED
             elif activity in [
                 "OK_CUTTING",
                 "OK_CUTTING_TIMER_OVERRIDDEN",
                 "OK_LEAVING",
             ]:
-                if self._state != STATE_CLEANING:
+                if self._state != VacuumActivity.CLEANING:
                     self._stint_start = datetime.now()
                     self._stint_end = None
-                self._state = STATE_CLEANING
+                self._state = VacuumActivity.CLEANING
             elif activity == "OK_SEARCHING":
-                if self._state == STATE_CLEANING:
+                if self._state == VacuumActivity.CLEANING:
                     self._stint_end = datetime.now()
-                self._state = STATE_RETURNING
+                self._state = VacuumActivity.RETURNING
             elif activity in [
                 "OK_CHARGING",
                 "PARKED_TIMER",
                 "PARKED_PARK_SELECTED",
                 "PARKED_AUTOTIMER",
             ]:
-                self._state = STATE_DOCKED
+                self._state = VacuumActivity.DOCKED
             elif activity == "NONE":
                 self._state = None
                 _LOGGER.debug("Mower has no activity")
@@ -154,7 +156,7 @@ class GardenaSmartMower(StateVacuumEntity):
 
     def error(self):
         """Return the error message."""
-        if self._state == STATE_ERROR:
+        if self._state == VacuumActivity.ERROR:
             return self._error_message
         return ""
 

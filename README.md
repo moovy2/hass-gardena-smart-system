@@ -1,8 +1,6 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg)](https://github.com/custom-components/hacs)
 [![hass-gardena-smart-system](https://img.shields.io/github/release/py-smart-gardena/hass-gardena-smart-system.svg?1)](https://github.com/py-smart-gardena/hass-gardena-smart-system)
 
-Feel free to join the discord server : [![Support Server](https://img.shields.io/discord/853252789522268180.svg?color=7289da&label=Discord&logo=discord&style=flat-square)](https://discord.gg/59sFjykS)
-
 # Home Assistant integration for Gardena Smart System
 
 Custom component to support Gardena Smart System devices.
@@ -22,9 +20,11 @@ Custom component to support Gardena Smart System devices.
 - [Services](#services)
   - [Smart Irrigation Control services](#smart-irrigation-control-services)
   - [Smart Mower services](#smart-mower-services)
+  - [Smart System general](#smart-system-general)
   - [Smart Power Socket services](#smart-power-socket-services)
   - [Smart Sensor services](#smart-sensor-services)
   - [Smart Water Control services](#smart-water-control-services)
+  - [Smart Irigation Control services](#smart-irigation-control-services)
 - [Recipes](#recipes)
 - [Development](#development)
   - [Debugging](#debugging)
@@ -156,17 +156,42 @@ The mower cancels the current operation, returns to charging station and ignores
 Stop the mower using Gardena API command PARK_UNTIL_NEXT_TASK.  
 The mower cancels the current operation and returns to charging station. It will reactivate with the next schedule.
 
+### Smart System general
+
+`binary_sensor.gardena_smart_system_connection`
+Checks if service is connected or disconnected
+
 ### Smart Power Socket services
 
 > [TODO: document services]
 
 ### Smart Sensor services
 
-> [TODO: document services]
+`sensor.sensor_light_intensity`
+Read the light intensity of a smart sensor. Only V1 of the Smart Sensor supports this.
+
+`sensor.sensor_soil_humidity`
+Read the soil humidity of a smart sensor. This can help automate your Water control / Irrigation Controller.
+
+`sensor.sensor_soil_temperature`
+Read the soil tempature.
+
+`sensor.sensor_ambient_temperature`
+Read the ambient tempature of a smart sensor.
+
+`sensor.sensor_battery_level`
+Read the battery level of a smart sensor.
 
 ### Smart Water Control services
 
 > [TODO: document services]
+
+### Smart Irigation Control services
+
+`switch.irrigation_control_valve_X`
+Open or close a valve to start watering . Irrigation control can have up to 6 valves and inherits the original name of each valve from the Gardena app. If a valve is not connected, the service for the specific valve is unavailable. 
+
+
 
 ## Recipes
 
