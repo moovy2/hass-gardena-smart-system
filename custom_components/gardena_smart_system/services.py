@@ -208,6 +208,14 @@ class GardenaServiceManager:
             schema=SERVICE_SCHEMA_BASE,
         )
         
+        # Sensor services
+        self.hass.services.async_register(
+            DOMAIN,
+            "sensor_measure",
+            self._service_sensor_measure,
+            schema=SERVICE_SCHEMA_BASE,
+        )
+
         # WebSocket services
         self.hass.services.async_register(
             DOMAIN,
@@ -406,6 +414,35 @@ class GardenaServiceManager:
         
         command = ValveCommand(service_id, "UNPAUSE")
         await self._send_command(service_id, command)
+
+    # Sensor services
+    async def _service_sensor_measure(self, call: ServiceCall) -> None:
+        """Trigger an on-demand measurement on a sensor device."""
+        device_id = call.data["device_id"]
+        service_id = self._get_device_service_id(device_id, "SENSOR")
+        if not service_id:
+            _LOGGER.error(f"No SENSOR service found for device {device_id}")
+            return
+
+        coordinator = self._get_coordinator(device_id)
+        if not coordinator:
+            _LOGGER.error(f"No coordinator found for device {device_id}")
+            return
+
+        command_data = {
+            "data": {
+                "id": f"cmd_{service_id}_measure",
+                "type": "SENSOR_CONTROL",
+                "attributes": {
+                    "command": "MEASURE",
+                },
+            }
+        }
+        try:
+            await coordinator.client.send_command(service_id, command_data)
+            _LOGGER.debug(f"MEASURE command sent to sensor {service_id}")
+        except Exception as e:
+            _LOGGER.error(f"Failed to send MEASURE command to {service_id}: {e}")
 
     # WebSocket services
     async def _service_reconnect_websocket(self, call: ServiceCall) -> None:
