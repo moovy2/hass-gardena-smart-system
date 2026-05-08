@@ -3,7 +3,7 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 
 from .const import DOMAIN
 from .coordinator import GardenaSmartSystemCoordinator
@@ -24,14 +24,21 @@ PLATFORMS = [
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the Gardena Smart System integration."""
     _LOGGER.info("Setting up Gardena Smart System integration")
-    
+
     # Initialize service manager once per Home Assistant instance
     if DOMAIN not in hass.data:
         hass.data[DOMAIN] = {}
         service_manager = GardenaServiceManager(hass)
         hass.data[DOMAIN]["service_manager"] = service_manager
         _LOGGER.info("Gardena Smart System services initialized")
-    
+
+    async def _async_reload_service(call: ServiceCall) -> None:
+        """Reload all config entries for this integration."""
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            await hass.config_entries.async_reload(entry.entry_id)
+
+    hass.services.async_register(DOMAIN, "reload", _async_reload_service)
+
     return True
 
 
