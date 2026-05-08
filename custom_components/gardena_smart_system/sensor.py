@@ -76,8 +76,8 @@ async def async_setup_entry(
                     if sensor_service.soil_humidity is not None:
                         entities.append(GardenaHumiditySensor(coordinator, device, sensor_service))
                     
-                    # Create light sensor (only for non-soil sensors)
-                    if sensor_service.light_intensity is not None and not is_soil_sensor:
+                    # Create light sensor
+                    if sensor_service.light_intensity is not None:
                         entities.append(GardenaLightSensor(coordinator, device, sensor_service))
 
     # Add WebSocket status sensor
