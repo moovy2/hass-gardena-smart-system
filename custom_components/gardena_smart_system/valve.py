@@ -9,7 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
+from .const import DOMAIN, CONF_VALVE_DURATIONS, DEFAULT_VALVE_DURATION_SECONDS
 from .coordinator import GardenaSmartSystemCoordinator
 from .entities import GardenaEntity
 
@@ -119,18 +119,27 @@ class GardenaWaterControl(GardenaEntity, ValveEntity):
         """Return true if valve is closing."""
         return False
 
+    def _get_configured_duration_seconds(self) -> int:
+        """Get the configured watering duration in seconds."""
+        durations = self.coordinator.hass.data[DOMAIN].get(CONF_VALVE_DURATIONS, {})
+        minutes = durations.get(self.valve_service.id)
+        if minutes is not None:
+            return int(minutes * 60)
+        return DEFAULT_VALVE_DURATION_SECONDS
+
     async def async_open_valve(self, **kwargs: Any) -> None:
         """Open the valve."""
         _LOGGER.info(f"=== OPEN_VALVE called for Water Control {self.device.name} ===")
         _LOGGER.info(f"Opening Water Control {self.device.name} ({self.valve_service.id})")
         if self.valve_service:
+            seconds = self._get_configured_duration_seconds()
             command_data = {
                 "data": {
                     "id": "open_valve",
                     "type": "VALVE_CONTROL",
                     "attributes": {
                         "command": "START_SECONDS_TO_OVERRIDE",
-                        "seconds": 3600,  # Default 1 hour
+                        "seconds": seconds,
                     },
                 }
             }
@@ -234,18 +243,27 @@ class GardenaSmartIrrigationControl(GardenaEntity, ValveEntity):
         """Return true if valve is closing."""
         return False
 
+    def _get_configured_duration_seconds(self) -> int:
+        """Get the configured watering duration in seconds."""
+        durations = self.coordinator.hass.data[DOMAIN].get(CONF_VALVE_DURATIONS, {})
+        minutes = durations.get(self.valve_service.id)
+        if minutes is not None:
+            return int(minutes * 60)
+        return DEFAULT_VALVE_DURATION_SECONDS
+
     async def async_open_valve(self, **kwargs: Any) -> None:
         """Open the valve."""
         _LOGGER.info(f"=== OPEN_VALVE called for Smart Irrigation Control valve {self._attr_name} ===")
         _LOGGER.info(f"Opening Smart Irrigation Control valve {self._attr_name} ({self.valve_service.id})")
         if self.valve_service:
+            seconds = self._get_configured_duration_seconds()
             command_data = {
                 "data": {
                     "id": "open_valve",
                     "type": "VALVE_CONTROL",
                     "attributes": {
                         "command": "START_SECONDS_TO_OVERRIDE",
-                        "seconds": 3600,  # Default 1 hour
+                        "seconds": seconds,
                     },
                 }
             }
@@ -352,17 +370,26 @@ class GardenaValve(GardenaEntity, ValveEntity):
         # Valve goes directly from WATERING to CLOSED
         return False
 
+    def _get_configured_duration_seconds(self) -> int:
+        """Get the configured watering duration in seconds."""
+        durations = self.coordinator.hass.data[DOMAIN].get(CONF_VALVE_DURATIONS, {})
+        minutes = durations.get(self.valve_service.id)
+        if minutes is not None:
+            return int(minutes * 60)
+        return DEFAULT_VALVE_DURATION_SECONDS
+
     async def async_open_valve(self, **kwargs: Any) -> None:
         """Open the valve."""
         _LOGGER.info(f"Opening valve {self.valve_service.name} ({self.valve_service.id})")
         if self.valve_service:
+            seconds = self._get_configured_duration_seconds()
             command_data = {
                 "data": {
                     "id": "open_valve",
                     "type": "VALVE_CONTROL",
                     "attributes": {
                         "command": "START_SECONDS_TO_OVERRIDE",
-                        "seconds": 3600,  # Default 1 hour
+                        "seconds": seconds,
                     },
                 }
             }

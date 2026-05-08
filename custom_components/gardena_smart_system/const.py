@@ -77,6 +77,10 @@ MOWER_ACTIVITY_MAP: Final = {
 WEBSOCKET_RECONNECT_DELAY: Final = 5  # seconds
 WEBSOCKET_MAX_RECONNECT_ATTEMPTS: Final = 10
 
+# Valve duration configuration
+CONF_VALVE_DURATIONS: Final = "valve_durations"
+DEFAULT_VALVE_DURATION_SECONDS: Final = 3600
+
 # Attribute names
 ATTR_BATTERY_STATE: Final = "battery_state"
 ATTR_RF_LINK_LEVEL: Final = "rf_link_level"
