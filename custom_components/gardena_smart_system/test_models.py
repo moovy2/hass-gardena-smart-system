@@ -32,6 +32,7 @@ class TestGardenaLocation:
             name="Test Device",
             model_type="Test Model",
             serial="12345",
+            services={},
             location_id="test-id"
         )
         location = GardenaLocation(id="test-id", name="Test Garden")
@@ -51,6 +52,7 @@ class TestGardenaDevice:
             name="Test Device",
             model_type="Test Model",
             serial="12345",
+            services={},
             location_id="test-id"
         )
         
@@ -68,6 +70,7 @@ class TestGardenaDevice:
             name="Test Device",
             model_type="Test Model",
             serial="12345",
+            services={},
             location_id="test-id"
         )
         
@@ -77,10 +80,10 @@ class TestGardenaDevice:
             device_id="device-1",
             battery_level=80
         )
-        device.services["COMMON"] = common_service
-        
+        device.services["COMMON"] = [common_service]
+
         assert len(device.services) == 1
-        assert device.services["COMMON"] == common_service
+        assert device.services["COMMON"][0] == common_service
 
 
 class TestGardenaServices:
@@ -289,15 +292,15 @@ class TestGardenaDataParser:
         assert len(device.services) == 2
         
         # Check COMMON service
-        common_service = device.services["COMMON"]
+        common_service = device.services["COMMON"][0]
         assert common_service.id == "common-1"
         assert common_service.type == "COMMON"
         assert common_service.battery_level == 80
         assert common_service.battery_state == "OK"
         assert common_service.rf_link_state == "ONLINE"
-        
+
         # Check MOWER service
-        mower_service = device.services["MOWER"]
+        mower_service = device.services["MOWER"][0]
         assert mower_service.id == "mower-1"
         assert mower_service.type == "MOWER"
         assert mower_service.state == "OK"
@@ -331,4 +334,62 @@ class TestGardenaDataParser:
         location = GardenaDataParser.parse_location_response(response_data)
         assert location.id == "location-1"
         assert location.name == "Test Garden"
-        assert len(location.devices) == 0 
+        assert len(location.devices) == 0
+
+    def test_parse_location_response_service_without_relationships(self):
+        """Test parsing location response with service missing relationships field."""
+        response_data = {
+            "data": {
+                "id": "location-1",
+                "type": "LOCATION",
+                "attributes": {
+                    "name": "Test Garden"
+                },
+                "relationships": {
+                    "devices": {
+                        "data": [{"id": "device-1", "type": "DEVICE"}]
+                    }
+                }
+            },
+            "included": [
+                {
+                    "id": "device-1",
+                    "type": "DEVICE",
+                    "relationships": {
+                        "services": {
+                            "data": [{"id": "common-1", "type": "COMMON"}]
+                        }
+                    }
+                },
+                {
+                    "id": "common-1",
+                    "type": "COMMON",
+                    "attributes": {
+                        "name": {"value": "Test Device"},
+                        "batteryLevel": {"value": 80},
+                        "batteryState": {"value": "OK"},
+                        "rfLinkState": {"value": "ONLINE"},
+                        "modelType": {"value": "GARDENA smart Mower"},
+                        "serial": {"value": "12345"}
+                    },
+                    "relationships": {
+                        "device": {"data": {"id": "device-1", "type": "DEVICE"}}
+                    }
+                },
+                {
+                    "id": "mower-1",
+                    "type": "MOWER",
+                    "attributes": {
+                        "state": {"value": "OK"},
+                        "activity": {"value": "PARKED_TIMER"}
+                    }
+                }
+            ]
+        }
+
+        location = GardenaDataParser.parse_location_response(response_data)
+        assert location.id == "location-1"
+        assert len(location.devices) == 1
+        device = location.devices["device-1"]
+        assert "COMMON" in device.services
+        assert "MOWER" not in device.services

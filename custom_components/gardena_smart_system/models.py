@@ -152,21 +152,26 @@ class GardenaDataParser:
         # Second pass: associate services with devices
         for service_type, service_list in services.items():
             for service_data in service_list:
-                device_id = service_data["relationships"]["device"]["data"]["id"]
-                if device_id in devices:
-                    device = devices[device_id]
-                    if service_type not in device.services:
-                        device.services[service_type] = []
-                    device.services[service_type].append(
-                        GardenaDataParser._create_service(service_type, service_data)
-                    )
-                    
-                    # Update device info from COMMON service
-                    if service_type == "COMMON":
-                        attrs = service_data.get("attributes", {})
-                        device.name = attrs.get("name", {}).get("value", device.name)
-                        device.model_type = attrs.get("modelType", {}).get("value", device.model_type)
-                        device.serial = attrs.get("serial", {}).get("value", device.serial)
+                relationships = service_data.get("relationships")
+                if not relationships:
+                    continue
+                device_ref = relationships.get("device", {}).get("data", {})
+                device_id = device_ref.get("id")
+                if not device_id or device_id not in devices:
+                    continue
+                device = devices[device_id]
+                if service_type not in device.services:
+                    device.services[service_type] = []
+                device.services[service_type].append(
+                    GardenaDataParser._create_service(service_type, service_data)
+                )
+
+                # Update device info from COMMON service
+                if service_type == "COMMON":
+                    attrs = service_data.get("attributes", {})
+                    device.name = attrs.get("name", {}).get("value", device.name)
+                    device.model_type = attrs.get("modelType", {}).get("value", device.model_type)
+                    device.serial = attrs.get("serial", {}).get("value", device.serial)
         
         location.devices = devices
         return location
@@ -175,7 +180,7 @@ class GardenaDataParser:
     def _create_service(service_type: str, service_data: Dict[str, Any]) -> Any:
         """Create a service object based on the service type."""
         service_id = service_data["id"]
-        device_id = service_data["relationships"]["device"]["data"]["id"]
+        device_id = service_data.get("relationships", {}).get("device", {}).get("data", {}).get("id", "")
         attrs = service_data.get("attributes", {})
         
         if service_type == "COMMON":
