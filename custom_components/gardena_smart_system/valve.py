@@ -119,6 +119,13 @@ class GardenaWaterControl(GardenaEntity, ValveEntity):
         """Return true if valve is closing."""
         return False
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return entity specific state attributes."""
+        attrs = super().extra_state_attributes
+        attrs["service_id"] = self.valve_service.id
+        return attrs
+
     def _get_configured_duration_seconds(self) -> int:
         """Get the configured watering duration in seconds."""
         durations = self.coordinator.hass.data[DOMAIN].get(CONF_VALVE_DURATIONS, {})
@@ -242,6 +249,13 @@ class GardenaSmartIrrigationControl(GardenaEntity, ValveEntity):
     def is_closing(self) -> bool:
         """Return true if valve is closing."""
         return False
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return entity specific state attributes."""
+        attrs = super().extra_state_attributes
+        attrs["service_id"] = self.valve_service.id
+        return attrs
 
     def _get_configured_duration_seconds(self) -> int:
         """Get the configured watering duration in seconds."""
@@ -369,6 +383,13 @@ class GardenaValve(GardenaEntity, ValveEntity):
         # API doesn't provide intermediate closing state, return False
         # Valve goes directly from WATERING to CLOSED
         return False
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return entity specific state attributes."""
+        attrs = super().extra_state_attributes
+        attrs["service_id"] = self.valve_service.id
+        return attrs
 
     def _get_configured_duration_seconds(self) -> int:
         """Get the configured watering duration in seconds."""

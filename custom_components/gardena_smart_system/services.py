@@ -234,7 +234,11 @@ class GardenaServiceManager:
     def _get_coordinator(self, device_id: str) -> Optional[GardenaSmartSystemCoordinator]:
         """Get coordinator for device."""
         for entry_id in self.hass.data[DOMAIN]:
+            if entry_id == "service_manager":
+                continue
             coordinator = self.hass.data[DOMAIN][entry_id]
+            if not hasattr(coordinator, 'get_device_by_id'):
+                continue
             device = coordinator.get_device_by_id(device_id)
             if device:
                 return coordinator
