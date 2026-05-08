@@ -64,6 +64,16 @@
     "reconnect_websocket": {
       "name": "Reconnecter WebSocket",
       "description": "Forcer la reconnexion WebSocket pour l'intégration Gardena Smart System."
+    },
+    "websocket_diagnostics": {
+      "name": "Diagnostics WebSocket",
+      "description": "Obtenir les diagnostics et le statut de la connexion WebSocket.",
+      "fields": {
+        "detailed": {
+          "name": "Détaillé",
+          "description": "Inclure les informations détaillées de connexion."
+        }
+      }
     }
   }
 }

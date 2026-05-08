@@ -222,6 +222,14 @@ class GardenaServiceManager:
             "reconnect_websocket",
             self._service_reconnect_websocket,
         )
+        self.hass.services.async_register(
+            DOMAIN,
+            "websocket_diagnostics",
+            self._service_websocket_diagnostics,
+            schema=vol.Schema({
+                vol.Optional("detailed", default=False): cv.boolean,
+            }),
+        )
 
     def _get_coordinator(self, device_id: str) -> Optional[GardenaSmartSystemCoordinator]:
         """Get coordinator for device."""
@@ -448,7 +456,7 @@ class GardenaServiceManager:
     async def _service_reconnect_websocket(self, call: ServiceCall) -> None:
         """Force WebSocket reconnection."""
         _LOGGER.info("WebSocket reconnection service called")
-        
+
         # Get the first available coordinator (skip service_manager)
         for entry_id in self.hass.data[DOMAIN]:
             if entry_id == "service_manager":
@@ -461,5 +469,39 @@ class GardenaServiceManager:
                     return
                 except Exception as e:
                     _LOGGER.error(f"Failed to reconnect WebSocket: {e}")
-        
-        _LOGGER.error("No WebSocket client found to reconnect") 
+
+        _LOGGER.error("No WebSocket client found to reconnect")
+
+    async def _service_websocket_diagnostics(self, call: ServiceCall) -> None:
+        """Get WebSocket connection diagnostics."""
+        detailed = call.data.get("detailed", False)
+
+        for entry_id in self.hass.data[DOMAIN]:
+            if entry_id == "service_manager":
+                continue
+            entry_data = self.hass.data[DOMAIN][entry_id]
+            if not hasattr(entry_data, 'websocket_client'):
+                continue
+
+            ws_client = entry_data.websocket_client
+            if not ws_client:
+                _LOGGER.info("WebSocket diagnostics: client not initialized")
+                return
+
+            diag = {
+                "status": ws_client.connection_status,
+                "is_connected": ws_client.is_connected,
+                "is_connecting": ws_client.is_connecting,
+                "reconnect_attempts": ws_client.reconnect_attempts,
+            }
+
+            if detailed:
+                diag.update({
+                    "websocket_url": ws_client.websocket_url,
+                    "shutdown_requested": ws_client._shutdown,
+                    "has_listen_task": ws_client.listen_task is not None and not ws_client.listen_task.done() if ws_client.listen_task else False,
+                    "has_reconnect_task": ws_client.reconnect_task is not None and not ws_client.reconnect_task.done() if ws_client.reconnect_task else False,
+                })
+
+            _LOGGER.info(f"WebSocket diagnostics: {diag}")
+            return
