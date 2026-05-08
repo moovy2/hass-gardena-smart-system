@@ -111,7 +111,9 @@ class GardenaWebSocketClient:
             ssl_context = None
             if self.auth_manager._dev_mode:
                 import ssl
-                ssl_context = ssl.create_default_context()
+                ssl_context = await asyncio.get_event_loop().run_in_executor(
+                    None, ssl.create_default_context
+                )
                 ssl_context.check_hostname = False
                 ssl_context.verify_mode = ssl.CERT_NONE
             
