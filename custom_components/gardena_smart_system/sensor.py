@@ -49,6 +49,12 @@ async def async_setup_entry(
                     else:
                         _LOGGER.debug(f"Skipping battery sensor for device without battery: {device.name} (battery_state: {common_service.battery_state})")
             
+            # Add mower error code sensor
+            if "MOWER" in device.services:
+                mower_services = device.services["MOWER"]
+                for mower_service in mower_services:
+                    entities.append(GardenaMowerErrorSensor(coordinator, device, mower_service))
+
             # Add sensor entities if available
             if "SENSOR" in device.services:
                 sensor_services = device.services["SENSOR"]
@@ -122,6 +128,44 @@ class GardenaBatterySensor(GardenaEntity, SensorEntity):
                 ATTR_RF_LINK_STATE: current_service.rf_link_state,
             })
         return attrs
+
+
+class GardenaMowerErrorSensor(GardenaEntity, SensorEntity):
+    """Representation of a Gardena mower error code sensor."""
+
+    def __init__(self, coordinator: GardenaSmartSystemCoordinator, device, mower_service) -> None:
+        """Initialize the mower error sensor."""
+        super().__init__(coordinator, device, "MOWER")
+        self._mower_service = mower_service
+        self._device_id = device.id
+        self._attr_name = f"{device.name} Error Code"
+        self._attr_unique_id = f"{device.id}_{mower_service.id}_last_error_code"
+        self._attr_icon = "mdi:alert-circle-outline"
+
+    def _get_current_mower_service(self):
+        """Get current mower service from coordinator (fresh data)."""
+        device = self.coordinator.get_device_by_id(self._device_id)
+        if device and "MOWER" in device.services:
+            for service in device.services["MOWER"]:
+                if service.id == self._mower_service.id:
+                    return service
+        return None
+
+    @property
+    def native_value(self) -> str | None:
+        """Return the last error code."""
+        current_service = self._get_current_mower_service()
+        if not current_service:
+            return None
+        return current_service.last_error_code
+
+    @property
+    def icon(self) -> str:
+        """Return icon based on error state."""
+        value = self.native_value
+        if value and value != "NO_MESSAGE":
+            return "mdi:alert-circle"
+        return "mdi:check-circle-outline"
 
 
 class GardenaTemperatureSensor(GardenaEntity, SensorEntity):
