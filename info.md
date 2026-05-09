@@ -52,6 +52,8 @@ Custom component to support Gardena Smart System devices.
 
 ## About
 
+> **Compatibility note:** This integration only works with WiFi-enabled Gardena Smart System devices that connect through a **Gardena Smart Gateway**. Bluetooth-only devices (older mowers, Bluetooth sensors) are **not supported**.
+
 This component is originally based on
 https://github.com/grm/home-assistant/tree/feature/smart_gardena and
 https://github.com/grm/py-smart-gardena

@@ -12,6 +12,16 @@ If this integration keeps your garden happy, consider buying me a coffee to keep
 
 ---
 
+## 📡 Compatibility
+
+This integration **only works with WiFi-enabled Gardena Smart System devices that connect through a Gardena Smart Gateway**. It communicates with the Gardena cloud API, which requires the gateway as a bridge.
+
+**Not compatible with:**
+- Bluetooth-only Gardena devices (e.g. older mowers, Gardena Bluetooth sensors)
+- Devices that connect directly via Bluetooth to a phone without a gateway
+
+If your device does not require a Gardena Smart Gateway for operation, it is not supported by this integration.
+
 ## ⚠️ Important: Complete Reimplementation
 
 This is a **complete rewrite** of the Gardena Smart System integration. It is **strongly recommended** to:
