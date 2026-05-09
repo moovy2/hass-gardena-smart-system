@@ -1,4 +1,35 @@
 {
+  "entity": {
+    "sensor": {
+      "mower_error": {
+        "name": "Error code",
+        "state": {
+          "no_message": "No error",
+          "outside_working_area": "Outside working area",
+          "no_loop_signal": "No loop signal",
+          "wrong_loop_signal": "Wrong loop signal",
+          "loop_sensor_problem_front": "Front loop sensor defect",
+          "loop_sensor_problem_rear": "Rear loop sensor defect",
+          "trapped": "Trapped",
+          "upside_down": "Upside down",
+          "low_battery": "Low battery",
+          "empty_battery": "Empty battery",
+          "no_drive": "No drive",
+          "lifted": "Lifted",
+          "stuck_in_charging_station": "Stuck in charging station",
+          "charging_station_blocked": "Charging station blocked",
+          "collision_sensor_problem_rear": "Rear collision sensor defect",
+          "collision_sensor_problem_front": "Front collision sensor defect",
+          "wheel_motor_blocked_right": "Right wheel motor blocked",
+          "wheel_motor_blocked_left": "Left wheel motor blocked",
+          "cutting_system_blocked": "Cutting system blocked",
+          "steep_slope": "Too steep slope",
+          "parked_daily_limit_reached": "Daily limit reached",
+          "unknown": "Unknown error"
+        }
+      }
+    }
+  },
   "config": {
     "abort": {
       "already_configured": "[%key:common::config_flow::abort::already_configured_account%]"

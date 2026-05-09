@@ -133,14 +133,28 @@ class GardenaBatterySensor(GardenaEntity, SensorEntity):
 class GardenaMowerErrorSensor(GardenaEntity, SensorEntity):
     """Representation of a Gardena mower error code sensor."""
 
+    _attr_translation_key = "mower_error"
+    _attr_has_entity_name = True
+    _attr_device_class = SensorDeviceClass.ENUM
+
     def __init__(self, coordinator: GardenaSmartSystemCoordinator, device, mower_service) -> None:
         """Initialize the mower error sensor."""
         super().__init__(coordinator, device, "MOWER")
         self._mower_service = mower_service
         self._device_id = device.id
-        self._attr_name = f"{device.name} Error Code"
+        self._attr_name = None
         self._attr_unique_id = f"{device.id}_{mower_service.id}_last_error_code"
         self._attr_icon = "mdi:alert-circle-outline"
+        self._attr_options = [
+            "no_message", "outside_working_area", "no_loop_signal",
+            "wrong_loop_signal", "loop_sensor_problem_front", "loop_sensor_problem_rear",
+            "trapped", "upside_down", "low_battery", "empty_battery", "no_drive",
+            "lifted", "stuck_in_charging_station", "charging_station_blocked",
+            "collision_sensor_problem_rear", "collision_sensor_problem_front",
+            "wheel_motor_blocked_right", "wheel_motor_blocked_left",
+            "cutting_system_blocked", "steep_slope", "parked_daily_limit_reached",
+            "unknown",
+        ]
 
     def _get_current_mower_service(self):
         """Get current mower service from coordinator (fresh data)."""
@@ -157,13 +171,16 @@ class GardenaMowerErrorSensor(GardenaEntity, SensorEntity):
         current_service = self._get_current_mower_service()
         if not current_service:
             return None
-        return current_service.last_error_code
+        error_code = current_service.last_error_code
+        if error_code:
+            return error_code.lower()
+        return None
 
     @property
     def icon(self) -> str:
         """Return icon based on error state."""
         value = self.native_value
-        if value and value != "NO_MESSAGE":
+        if value and value != "no_message":
             return "mdi:alert-circle"
         return "mdi:check-circle-outline"
 
