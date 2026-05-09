@@ -6,7 +6,7 @@ A **complete reimplementation** of the Home Assistant integration for the Garden
 
 If this integration keeps your garden happy, consider buying me a coffee to keep the developer happy too!
 
-<a href="https://www.buymeacoffee.com/1vhnvriwe"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=1vhnvriwe&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" /></a>
+<a href="https://www.buymeacoffee.com/1vhnvriwe"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="50" width="210" alt="Buy Me A Coffee" /></a>
 &nbsp;&nbsp;
 <a href="https://paypal.me/grmklein" title="Donate to this project using Paypal"><img src="https://img.shields.io/badge/paypal-donate-yellow.svg" alt="PayPal donate button" /></a>
 
