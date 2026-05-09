@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.components.sensor import SensorEntity, SensorDeviceClass
+from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
@@ -95,6 +95,8 @@ async def async_setup_entry(
 
 class GardenaBatterySensor(GardenaEntity, SensorEntity):
     """Representation of a Gardena battery sensor."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, coordinator: GardenaSmartSystemCoordinator, device, common_service) -> None:
         """Initialize the battery sensor."""
@@ -194,6 +196,8 @@ class GardenaMowerErrorSensor(GardenaEntity, SensorEntity):
 class GardenaTemperatureSensor(GardenaEntity, SensorEntity):
     """Representation of a Gardena temperature sensor."""
 
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
     def __init__(self, coordinator: GardenaSmartSystemCoordinator, device, sensor_service, temp_attr: str, is_soil_sensor: bool = False) -> None:
         """Initialize the temperature sensor."""
         super().__init__(coordinator, device, "SENSOR")
@@ -241,6 +245,8 @@ class GardenaTemperatureSensor(GardenaEntity, SensorEntity):
 class GardenaHumiditySensor(GardenaEntity, SensorEntity):
     """Representation of a Gardena humidity sensor."""
 
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
     def __init__(self, coordinator: GardenaSmartSystemCoordinator, device, sensor_service) -> None:
         """Initialize the humidity sensor."""
         super().__init__(coordinator, device, "SENSOR")
@@ -270,6 +276,8 @@ class GardenaHumiditySensor(GardenaEntity, SensorEntity):
 
 class GardenaLightSensor(GardenaEntity, SensorEntity):
     """Representation of a Gardena light sensor."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, coordinator: GardenaSmartSystemCoordinator, device, sensor_service) -> None:
         """Initialize the light sensor."""
