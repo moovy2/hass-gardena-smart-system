@@ -1,4 +1,4 @@
-# Gardena Smart System Integration v2.0.0
+# Gardena Smart System Integration v2
 
 A **complete reimplementation** of the Home Assistant integration for the Gardena Smart System, based on Gardena's v2 API.
 
