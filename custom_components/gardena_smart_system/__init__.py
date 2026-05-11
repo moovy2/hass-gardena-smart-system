@@ -4,6 +4,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers.device_registry import DeviceEntry
 
 from .const import DOMAIN
 from .coordinator import GardenaSmartSystemCoordinator
@@ -78,13 +79,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     _LOGGER.info("Unloading Gardena Smart System component")
-    
+
     # Unload platforms
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    
+
     if unload_ok:
         # Remove coordinator from hass data
         coordinator = hass.data[DOMAIN].pop(entry.entry_id)
         await coordinator.async_shutdown()
-    
+
     return unload_ok
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    device_entry: DeviceEntry,
+) -> bool:
+    """Allow removal of devices no longer reported by the Gardena API."""
+    coordinator = hass.data[DOMAIN].get(config_entry.entry_id)
+    if not coordinator:
+        return True
+
+    known_device_ids: set[str] = set()
+    for location in coordinator.locations.values():
+        for device_id in location.devices:
+            known_device_ids.add(device_id)
+
+    return not device_entry.identifiers.intersection(
+        (DOMAIN, device_id) for device_id in known_device_ids
+    )
