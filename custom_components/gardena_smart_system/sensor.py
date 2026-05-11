@@ -167,13 +167,66 @@ class GardenaMowerErrorSensor(GardenaEntity, SensorEntity):
         self._attr_unique_id = f"{device.id}_{mower_service.id}_last_error_code"
         self._attr_icon = "mdi:alert-circle-outline"
         self._attr_options = [
-            "no_message", "outside_working_area", "no_loop_signal",
-            "wrong_loop_signal", "loop_sensor_problem_front", "loop_sensor_problem_rear",
+            "uninitialised", "no_message", "outside_working_area", "no_loop_signal",
+            "no_charging_station_signal", "wrong_loop_signal",
+            "loop_sensor_problem_front", "loop_sensor_problem_rear",
             "trapped", "upside_down", "low_battery", "empty_battery", "no_drive",
             "lifted", "stuck_in_charging_station", "charging_station_blocked",
             "collision_sensor_problem_rear", "collision_sensor_problem_front",
             "wheel_motor_blocked_right", "wheel_motor_blocked_left",
-            "cutting_system_blocked", "steep_slope", "parked_daily_limit_reached",
+            "wheel_drive_problem_right", "wheel_drive_problem_left",
+            "cutting_system_blocked", "invalid_sub_device_combination",
+            "settings_restored", "charging_system_problem", "tilt_sensor_problem",
+            "mower_tilted", "wheel_motor_overloaded_right",
+            "wheel_motor_overloaded_left", "charging_current_too_high",
+            "electronic_problem", "cutting_height_blocked", "cutting_height_problem",
+            "temporary_problem", "guide_1_not_found", "guide_2_not_found",
+            "guide_3_not_found", "gps_tracker_module_error", "weak_gps_signal",
+            "guide_calibration_failed", "temporary_battery_problem",
+            "battery_problem", "alarm_mower_switched_off", "alarm_mower_stopped",
+            "alarm_mower_lifted", "alarm_mower_tilted", "com_board_not_available",
+            "slipped", "invalid_battery_combination", "safety_function_faulty",
+            "invalid_system_conf", "lift_sensor_defect", "mobile_loop_defect",
+            "left_loop_sensor", "right_loop_sensor", "wrong_pin", "temporary_lift",
+            "cutting_drive", "steep_slope", "stop_button_fail",
+            "angle_cutting_means_off", "slave_mcu_lost", "cutting_overload",
+            "cutting_height_range", "cutting_height_drift", "cutting_height_limited",
+            "cutting_height_drive", "cutting_height_current",
+            "cutting_height_direction", "mower_to_cs_com", "ultrasonic_error",
+            "high_low_bat_temp_a", "high_low_bat_temp_b",
+            "too_low_voltage_bat_a", "too_low_voltage_bat_b",
+            "alarm_motion", "alarm_geofence",
+            "rr_wheel_blocked", "rl_wheel_blocked",
+            "rr_wheel_drive", "rl_wheel_drive",
+            "rear_right_wheel_overloaded", "rear_left_wheel_overloaded",
+            "angular_sensor_defect", "no_power_in_cs", "switch_cord_sensor_defect",
+            "map_not_valid", "no_position", "no_rs_communication",
+            "folding_sensor_activated",
+            "ultrasonic_sensor_1_defect", "ultrasonic_sensor_2_defect",
+            "ultrasonic_sensor_3_defect", "ultrasonic_sensor_4_defect",
+            "cutting_drive_motor_1_defect", "cutting_drive_motor_2_defect",
+            "cutting_drive_motor_3_defect",
+            "collision_sensor_defect", "docking_sensor_defect",
+            "folding_cutting_deck_sensor_defect", "loop_sensor_defect",
+            "collision_sensor_error", "no_confirmed_position",
+            "major_cutting_disk_imbalance", "complex_working_area",
+            "invalid_sw_configuration", "radar_error", "work_area_tampered",
+            "destination_not_reachable", "wait_stop_pressed", "wait_for_safety_pin",
+            "destination_not_reachable_warning", "battery_near_end_of_life",
+            "edgemotor_blocked", "no_correction_data", "invalid_correction_data",
+            "wait_updating", "wait_power_up", "off_disabled", "off_hatch_open",
+            "off_hatch_closed", "parked_daily_limit_reached",
+            "vision_system_malfunction", "poor_vision_system_performance",
+            "vision_processing_failed",
+            "loop_sensor_problem_left", "loop_sensor_problem_right",
+            "wrong_pin_code", "lost_wheel_brush", "accessory_power_anomaly",
+            "loop_wire_broken", "battery_fet_error", "imbalanced_cutting_disc",
+            "cutting_motor_problem", "limited_cutting_height_range",
+            "cutting_motor_drive_defect", "memory_circuit_problem",
+            "stop_button_problem", "difficult_finding_home",
+            "guide_calibration_accomplished", "too_many_batteries",
+            "alarm_mower_in_motion", "alarm_outside_geofence",
+            "connection_changed", "connection_not_changed",
             "unknown",
         ]
 
@@ -195,7 +248,7 @@ class GardenaMowerErrorSensor(GardenaEntity, SensorEntity):
         error_code = current_service.last_error_code
         if error_code:
             return error_code.lower()
-        return None
+        return "no_message"
 
     @property
     def icon(self) -> str:
