@@ -7,7 +7,7 @@ from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfTemperature
+from homeassistant.const import PERCENTAGE, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -38,7 +38,7 @@ async def async_setup_entry(
         for device in location.devices.values():
             _LOGGER.debug(f"Checking device {device.name} ({device.id}) - Services: {list(device.services.keys())}")
             
-            # Add battery sensors only for devices that have batteries
+            # Add battery and RF link sensors for devices that have COMMON service
             if "COMMON" in device.services:
                 common_services = device.services["COMMON"]
                 _LOGGER.debug(f"Found {len(common_services)} common services for device: {device.name} ({device.id})")
@@ -55,12 +55,18 @@ async def async_setup_entry(
                         entities.append(GardenaBatterySensor(coordinator, device, common_service))
                     else:
                         _LOGGER.debug(f"Skipping battery sensor for device without battery: {device.name} (battery_state: {common_service.battery_state})")
+
+                    # RF Link Quality sensor
+                    if common_service.rf_link_level is not None:
+                        entities.append(GardenaRFLinkLevelSensor(coordinator, device, common_service))
             
-            # Add mower error code sensor
+            # Add mower sensors
             if "MOWER" in device.services:
                 mower_services = device.services["MOWER"]
                 for mower_service in mower_services:
                     entities.append(GardenaMowerErrorSensor(coordinator, device, mower_service))
+                    if mower_service.operating_hours is not None:
+                        entities.append(GardenaMowerOperatingHoursSensor(coordinator, device, mower_service))
 
             # Add watering end time sensors for valves
             if "VALVE" in device.services:
@@ -198,6 +204,78 @@ class GardenaMowerErrorSensor(GardenaEntity, SensorEntity):
         if value and value != "no_message":
             return "mdi:alert-circle"
         return "mdi:check-circle-outline"
+
+
+class GardenaMowerOperatingHoursSensor(GardenaEntity, SensorEntity):
+    """Representation of a Gardena mower operating hours sensor."""
+
+    _attr_state_class = SensorStateClass.TOTAL_INCREASING
+    _attr_device_class = SensorDeviceClass.DURATION
+
+    def __init__(self, coordinator: GardenaSmartSystemCoordinator, device, mower_service) -> None:
+        """Initialize the operating hours sensor."""
+        super().__init__(coordinator, device, "MOWER")
+        self._mower_service = mower_service
+        self._device_id = device.id
+        self._attr_name = f"{device.name} Operating Hours"
+        self._attr_unique_id = f"{device.id}_{mower_service.id}_operating_hours"
+        self._attr_native_unit_of_measurement = UnitOfTime.HOURS
+        self._attr_icon = "mdi:clock-outline"
+
+    def _get_current_mower_service(self):
+        """Get current mower service from coordinator (fresh data)."""
+        device = self.coordinator.get_device_by_id(self._device_id)
+        if device and "MOWER" in device.services:
+            for service in device.services["MOWER"]:
+                if service.id == self._mower_service.id:
+                    return service
+        return None
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the operating hours."""
+        current_service = self._get_current_mower_service()
+        return current_service.operating_hours if current_service else None
+
+
+class GardenaRFLinkLevelSensor(GardenaEntity, SensorEntity):
+    """Representation of a Gardena RF link quality sensor."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator: GardenaSmartSystemCoordinator, device, common_service) -> None:
+        """Initialize the RF link level sensor."""
+        super().__init__(coordinator, device, "COMMON")
+        self._common_service = common_service
+        self._device_id = device.id
+        self._attr_name = f"{device.name} RF Link Quality"
+        self._attr_unique_id = f"{device.id}_{common_service.id}_rf_link_level"
+        self._attr_native_unit_of_measurement = PERCENTAGE
+        self._attr_icon = "mdi:signal"
+
+    def _get_current_common_service(self):
+        """Get current common service from coordinator (fresh data)."""
+        device = self.coordinator.get_device_by_id(self._device_id)
+        if device and "COMMON" in device.services:
+            for service in device.services["COMMON"]:
+                if service.id == self._common_service.id:
+                    return service
+        return None
+
+    @property
+    def native_value(self) -> int | None:
+        """Return the RF link level."""
+        current_service = self._get_current_common_service()
+        return current_service.rf_link_level if current_service else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return entity specific state attributes."""
+        attrs = super().extra_state_attributes
+        current_service = self._get_current_common_service()
+        if current_service:
+            attrs[ATTR_RF_LINK_STATE] = current_service.rf_link_state
+        return attrs
 
 
 class GardenaTemperatureSensor(GardenaEntity, SensorEntity):
