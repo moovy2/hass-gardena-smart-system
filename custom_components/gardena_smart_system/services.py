@@ -5,7 +5,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 import voluptuous as vol
 
 from .const import DOMAIN
@@ -34,10 +34,16 @@ SERVICE_SCHEMA_MOWER = vol.Schema({
 })
 
 SERVICE_SCHEMA_VALVE = vol.Schema({
-    vol.Required("device_id"): cv.string,
+    vol.Optional("device_id"): cv.string,
+    vol.Optional("service_id"): cv.string,
     vol.Optional("duration", default=3600): vol.All(
         cv.positive_int, vol.Range(min=60, max=14400)
     ),
+})
+
+SERVICE_SCHEMA_VALVE_BASE = vol.Schema({
+    vol.Optional("device_id"): cv.string,
+    vol.Optional("service_id"): cv.string,
 })
 
 # Command types
@@ -53,9 +59,11 @@ class GardenaCommand:
     def to_dict(self) -> Dict[str, Any]:
         """Convert command to API format."""
         return {
-            "id": f"cmd_{self.service_id}_{self.command_type}",
-            "type": self.command_type,
-            "attributes": self.attributes,
+            "data": {
+                "id": f"cmd_{self.service_id}_{self.command_type}",
+                "type": self.command_type,
+                "attributes": self.attributes,
+            }
         }
 
 
@@ -193,19 +201,19 @@ class GardenaServiceManager:
             DOMAIN,
             "valve_close",
             self._service_valve_close,
-            schema=SERVICE_SCHEMA_BASE,
+            schema=SERVICE_SCHEMA_VALVE_BASE,
         )
         self.hass.services.async_register(
             DOMAIN,
             "valve_pause",
             self._service_valve_pause,
-            schema=SERVICE_SCHEMA_BASE,
+            schema=SERVICE_SCHEMA_VALVE_BASE,
         )
         self.hass.services.async_register(
             DOMAIN,
             "valve_unpause",
             self._service_valve_unpause,
-            schema=SERVICE_SCHEMA_BASE,
+            schema=SERVICE_SCHEMA_VALVE_BASE,
         )
         
         # Sensor services
@@ -231,6 +239,25 @@ class GardenaServiceManager:
             }),
         )
 
+    def _resolve_device_id(self, device_id: str) -> str:
+        """Resolve a HA device registry ID to a Gardena device ID.
+
+        The user may pass either:
+        - A Home Assistant device registry ID (hex hash like 4bbe526...)
+        - A Gardena API device ID (UUID like d8a1faef-...)
+
+        This method checks the device registry first. If the given ID matches
+        a registry entry with a Gardena identifier, return the Gardena ID.
+        Otherwise assume it's already a Gardena ID and return it as-is.
+        """
+        registry = dr.async_get(self.hass)
+        entry = registry.async_get(device_id)
+        if entry:
+            for domain, identifier in entry.identifiers:
+                if domain == DOMAIN:
+                    return identifier
+        return device_id
+
     def _get_coordinator(self, device_id: str) -> Optional[GardenaSmartSystemCoordinator]:
         """Get coordinator for device."""
         for entry_id in self.hass.data[DOMAIN]:
@@ -245,23 +272,72 @@ class GardenaServiceManager:
         return None
 
     def _get_device_service_id(self, device_id: str, service_type: str) -> Optional[str]:
-        """Get service ID for device and service type."""
+        """Get service ID for device and service type.
+
+        Only use for device types that have a single service (MOWER, POWER_SOCKET, SENSOR).
+        For VALVE, use _resolve_valve_service_id instead.
+        """
         coordinator = self._get_coordinator(device_id)
         if not coordinator:
             return None
-        
+
         device = coordinator.get_device_by_id(device_id)
         if not device or service_type not in device.services:
             return None
-        
-        # Handle list of services (for devices with multiple services of same type)
+
         services = device.services[service_type]
         if isinstance(services, list) and len(services) > 0:
-            return services[0].id  # Return first service ID
+            if len(services) > 1:
+                _LOGGER.warning(
+                    "Device %s has %d %s services, using first one. "
+                    "Pass service_id to target a specific service.",
+                    device_id, len(services), service_type,
+                )
+            return services[0].id
         elif hasattr(services, 'id'):
-            return services.id  # Handle single service object
+            return services.id
         else:
             return None
+
+    def _resolve_valve_service_id(self, call: ServiceCall) -> Optional[str]:
+        """Resolve valve service ID from call data.
+
+        Supports either:
+        - service_id directly (e.g. '<device-uuid>:2')
+        - device_id (resolves to the single VALVE service, or errors if multiple)
+        """
+        if (sid := call.data.get("service_id")):
+            return sid
+
+        device_id = call.data.get("device_id")
+        if not device_id:
+            _LOGGER.error("Either device_id or service_id must be provided")
+            return None
+
+        device_id = self._resolve_device_id(device_id)
+        coordinator = self._get_coordinator(device_id)
+        if not coordinator:
+            _LOGGER.error("No coordinator found for device %s", device_id)
+            return None
+
+        device = coordinator.get_device_by_id(device_id)
+        if not device or "VALVE" not in device.services:
+            _LOGGER.error("No VALVE service found for device %s", device_id)
+            return None
+
+        services = device.services["VALVE"]
+        if not isinstance(services, list) or len(services) == 0:
+            _LOGGER.error("No VALVE service found for device %s", device_id)
+            return None
+
+        if len(services) == 1:
+            return services[0].id
+
+        _LOGGER.error(
+            "Device %s has %d VALVE services; pass service_id to choose one (available: %s)",
+            device_id, len(services), [s.id for s in services],
+        )
+        return None
 
     async def _send_command(self, service_id: str, command: GardenaCommand) -> bool:
         """Send command to device."""
@@ -281,7 +357,7 @@ class GardenaServiceManager:
     # Mower services
     async def _service_mower_start(self, call: ServiceCall) -> None:
         """Start automatic mowing."""
-        device_id = call.data["device_id"]
+        device_id = self._resolve_device_id(call.data["device_id"])
         service_id = self._get_device_service_id(device_id, "MOWER")
         if not service_id:
             _LOGGER.error(f"No MOWER service found for device {device_id}")
@@ -292,7 +368,7 @@ class GardenaServiceManager:
 
     async def _service_mower_start_manual(self, call: ServiceCall) -> None:
         """Start manual mowing for specified duration."""
-        device_id = call.data["device_id"]
+        device_id = self._resolve_device_id(call.data["device_id"])
         duration = call.data["duration"]
         service_id = self._get_device_service_id(device_id, "MOWER")
         if not service_id:
@@ -304,7 +380,7 @@ class GardenaServiceManager:
 
     async def _service_mower_park(self, call: ServiceCall) -> None:
         """Park mower until next task."""
-        device_id = call.data["device_id"]
+        device_id = self._resolve_device_id(call.data["device_id"])
         service_id = self._get_device_service_id(device_id, "MOWER")
         if not service_id:
             _LOGGER.error(f"No MOWER service found for device {device_id}")
@@ -315,7 +391,7 @@ class GardenaServiceManager:
 
     async def _service_mower_park_until_notice(self, call: ServiceCall) -> None:
         """Park mower until further notice."""
-        device_id = call.data["device_id"]
+        device_id = self._resolve_device_id(call.data["device_id"])
         service_id = self._get_device_service_id(device_id, "MOWER")
         if not service_id:
             _LOGGER.error(f"No MOWER service found for device {device_id}")
@@ -327,7 +403,7 @@ class GardenaServiceManager:
     # Power socket services
     async def _service_power_socket_on(self, call: ServiceCall) -> None:
         """Turn on power socket for specified duration."""
-        device_id = call.data["device_id"]
+        device_id = self._resolve_device_id(call.data["device_id"])
         duration = call.data["duration"]
         service_id = self._get_device_service_id(device_id, "POWER_SOCKET")
         if not service_id:
@@ -339,7 +415,7 @@ class GardenaServiceManager:
 
     async def _service_power_socket_on_indefinite(self, call: ServiceCall) -> None:
         """Turn on power socket indefinitely."""
-        device_id = call.data["device_id"]
+        device_id = self._resolve_device_id(call.data["device_id"])
         service_id = self._get_device_service_id(device_id, "POWER_SOCKET")
         if not service_id:
             _LOGGER.error(f"No POWER_SOCKET service found for device {device_id}")
@@ -350,7 +426,7 @@ class GardenaServiceManager:
 
     async def _service_power_socket_off(self, call: ServiceCall) -> None:
         """Turn off power socket."""
-        device_id = call.data["device_id"]
+        device_id = self._resolve_device_id(call.data["device_id"])
         service_id = self._get_device_service_id(device_id, "POWER_SOCKET")
         if not service_id:
             _LOGGER.error(f"No POWER_SOCKET service found for device {device_id}")
@@ -361,7 +437,7 @@ class GardenaServiceManager:
 
     async def _service_power_socket_pause(self, call: ServiceCall) -> None:
         """Pause power socket operation."""
-        device_id = call.data["device_id"]
+        device_id = self._resolve_device_id(call.data["device_id"])
         service_id = self._get_device_service_id(device_id, "POWER_SOCKET")
         if not service_id:
             _LOGGER.error(f"No POWER_SOCKET service found for device {device_id}")
@@ -372,7 +448,7 @@ class GardenaServiceManager:
 
     async def _service_power_socket_unpause(self, call: ServiceCall) -> None:
         """Unpause power socket operation."""
-        device_id = call.data["device_id"]
+        device_id = self._resolve_device_id(call.data["device_id"])
         service_id = self._get_device_service_id(device_id, "POWER_SOCKET")
         if not service_id:
             _LOGGER.error(f"No POWER_SOCKET service found for device {device_id}")
@@ -384,53 +460,45 @@ class GardenaServiceManager:
     # Valve services
     async def _service_valve_open(self, call: ServiceCall) -> None:
         """Open valve for specified duration."""
-        device_id = call.data["device_id"]
-        duration = call.data["duration"]
-        service_id = self._get_device_service_id(device_id, "VALVE")
+        service_id = self._resolve_valve_service_id(call)
         if not service_id:
-            _LOGGER.error(f"No VALVE service found for device {device_id}")
             return
-        
+
+        duration = call.data["duration"]
         command = ValveCommand(service_id, "START_SECONDS_TO_OVERRIDE", seconds=duration)
         await self._send_command(service_id, command)
 
     async def _service_valve_close(self, call: ServiceCall) -> None:
         """Close valve."""
-        device_id = call.data["device_id"]
-        service_id = self._get_device_service_id(device_id, "VALVE")
+        service_id = self._resolve_valve_service_id(call)
         if not service_id:
-            _LOGGER.error(f"No VALVE service found for device {device_id}")
             return
-        
+
         command = ValveCommand(service_id, "STOP_UNTIL_NEXT_TASK")
         await self._send_command(service_id, command)
 
     async def _service_valve_pause(self, call: ServiceCall) -> None:
         """Pause valve operation."""
-        device_id = call.data["device_id"]
-        service_id = self._get_device_service_id(device_id, "VALVE")
+        service_id = self._resolve_valve_service_id(call)
         if not service_id:
-            _LOGGER.error(f"No VALVE service found for device {device_id}")
             return
-        
+
         command = ValveCommand(service_id, "PAUSE")
         await self._send_command(service_id, command)
 
     async def _service_valve_unpause(self, call: ServiceCall) -> None:
         """Unpause valve operation."""
-        device_id = call.data["device_id"]
-        service_id = self._get_device_service_id(device_id, "VALVE")
+        service_id = self._resolve_valve_service_id(call)
         if not service_id:
-            _LOGGER.error(f"No VALVE service found for device {device_id}")
             return
-        
+
         command = ValveCommand(service_id, "UNPAUSE")
         await self._send_command(service_id, command)
 
     # Sensor services
     async def _service_sensor_measure(self, call: ServiceCall) -> None:
         """Trigger an on-demand measurement on a sensor device."""
-        device_id = call.data["device_id"]
+        device_id = self._resolve_device_id(call.data["device_id"])
         service_id = self._get_device_service_id(device_id, "SENSOR")
         if not service_id:
             _LOGGER.error(f"No SENSOR service found for device {device_id}")

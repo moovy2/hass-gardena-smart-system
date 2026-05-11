@@ -1,6 +1,6 @@
 """Tests for Gardena Smart System services and commands."""
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock, patch, PropertyMock
 from typing import Dict, Any
 
 from .services import (
@@ -12,6 +12,18 @@ from .services import (
 )
 from .models import GardenaDevice, GardenaMowerService, GardenaPowerSocketService, GardenaValveService
 from .coordinator import GardenaSmartSystemCoordinator
+
+
+@pytest.fixture(autouse=True)
+def mock_device_registry():
+    """Mock the device registry for all tests."""
+    with patch(
+        "custom_components.gardena_smart_system.services.dr.async_get"
+    ) as mock_dr:
+        registry = Mock()
+        registry.async_get.return_value = None
+        mock_dr.return_value = registry
+        yield mock_dr
 
 
 class TestGardenaCommand:
@@ -30,10 +42,11 @@ class TestGardenaCommand:
         """Test command to_dict conversion."""
         command = GardenaCommand("test-service", "TEST_TYPE", param1="value1")
         result = command.to_dict()
-        
-        assert result["id"] == "cmd_test-service_TEST_TYPE"
-        assert result["type"] == "TEST_TYPE"
-        assert result["attributes"]["param1"] == "value1"
+
+        assert "data" in result
+        assert result["data"]["id"] == "cmd_test-service_TEST_TYPE"
+        assert result["data"]["type"] == "TEST_TYPE"
+        assert result["data"]["attributes"]["param1"] == "value1"
 
 
 class TestMowerCommand:
@@ -59,10 +72,10 @@ class TestMowerCommand:
         """Test mower command to_dict conversion."""
         command = MowerCommand("mower-service", "PARK_UNTIL_NEXT_TASK")
         result = command.to_dict()
-        
-        assert result["id"] == "cmd_mower-service_MOWER_CONTROL"
-        assert result["type"] == "MOWER_CONTROL"
-        assert result["attributes"]["command"] == "PARK_UNTIL_NEXT_TASK"
+
+        assert result["data"]["id"] == "cmd_mower-service_MOWER_CONTROL"
+        assert result["data"]["type"] == "MOWER_CONTROL"
+        assert result["data"]["attributes"]["command"] == "PARK_UNTIL_NEXT_TASK"
 
     def test_mower_commands_available(self):
         """Test that all mower commands are available."""
@@ -161,12 +174,12 @@ class TestGardenaServiceManager:
         device = Mock(spec=GardenaDevice)
         device.id = "test-device-1"
         device.name = "Test Device"
-        
-        # Add mower service
+
+        # Add mower service (as a list, matching real data structure)
         mower_service = Mock(spec=GardenaMowerService)
         mower_service.id = "mower-service-1"
-        device.services = {"MOWER": mower_service}
-        
+        device.services = {"MOWER": [mower_service]}
+
         return device
 
     def test_service_manager_initialization(self, mock_hass):
@@ -281,12 +294,12 @@ class TestGardenaServiceManager:
         mock_call.data = {"device_id": "test-device-1"}
         
         await service_manager._service_mower_start(mock_call)
-        
+
         # Verify command was sent
         mock_coordinator.client.send_command.assert_called_once()
         call_args = mock_coordinator.client.send_command.call_args[0]
         assert call_args[0] == "mower-service-1"
-        assert call_args[1]["attributes"]["command"] == "START_DONT_OVERRIDE"
+        assert call_args[1]["data"]["attributes"]["command"] == "START_DONT_OVERRIDE"
 
     @pytest.mark.asyncio
     async def test_mower_start_manual_service(self, mock_hass, mock_coordinator, mock_device):
@@ -298,31 +311,31 @@ class TestGardenaServiceManager:
         }
         mock_coordinator.get_device_by_id.return_value = mock_device
         mock_coordinator.client.send_command.return_value = {"status": "accepted"}
-        
+
         service_manager = GardenaServiceManager(mock_hass)
-        
+
         # Create mock service call
         mock_call = Mock()
         mock_call.data = {"device_id": "test-device-1", "duration": 1800}
-        
+
         await service_manager._service_mower_start_manual(mock_call)
-        
+
         # Verify command was sent
         mock_coordinator.client.send_command.assert_called_once()
         call_args = mock_coordinator.client.send_command.call_args[0]
         assert call_args[0] == "mower-service-1"
-        assert call_args[1]["attributes"]["command"] == "START_SECONDS_TO_OVERRIDE"
-        assert call_args[1]["attributes"]["seconds"] == 1800
+        assert call_args[1]["data"]["attributes"]["command"] == "START_SECONDS_TO_OVERRIDE"
+        assert call_args[1]["data"]["attributes"]["seconds"] == 1800
 
     @pytest.mark.asyncio
     async def test_power_socket_on_service(self, mock_hass, mock_coordinator):
         """Test power socket on service."""
-        # Setup device with power socket service
+        # Setup device with power socket service (as a list)
         device = Mock(spec=GardenaDevice)
         device.id = "test-device-1"
         power_service = Mock(spec=GardenaPowerSocketService)
         power_service.id = "power-service-1"
-        device.services = {"POWER_SOCKET": power_service}
+        device.services = {"POWER_SOCKET": [power_service]}
         
         mock_hass.data = {
             "gardena_smart_system": {
@@ -339,24 +352,24 @@ class TestGardenaServiceManager:
         mock_call.data = {"device_id": "test-device-1", "duration": 3600}
         
         await service_manager._service_power_socket_on(mock_call)
-        
+
         # Verify command was sent
         mock_coordinator.client.send_command.assert_called_once()
         call_args = mock_coordinator.client.send_command.call_args[0]
         assert call_args[0] == "power-service-1"
-        assert call_args[1]["attributes"]["command"] == "START_SECONDS_TO_OVERRIDE"
-        assert call_args[1]["attributes"]["seconds"] == 3600
+        assert call_args[1]["data"]["attributes"]["command"] == "START_SECONDS_TO_OVERRIDE"
+        assert call_args[1]["data"]["attributes"]["seconds"] == 3600
 
     @pytest.mark.asyncio
     async def test_valve_open_service(self, mock_hass, mock_coordinator):
         """Test valve open service."""
-        # Setup device with valve service
+        # Setup device with valve service (as a list)
         device = Mock(spec=GardenaDevice)
         device.id = "test-device-1"
         valve_service = Mock(spec=GardenaValveService)
         valve_service.id = "valve-service-1"
-        device.services = {"VALVE": valve_service}
-        
+        device.services = {"VALVE": [valve_service]}
+
         mock_hass.data = {
             "gardena_smart_system": {
                 "entry-1": mock_coordinator
@@ -364,21 +377,80 @@ class TestGardenaServiceManager:
         }
         mock_coordinator.get_device_by_id.return_value = device
         mock_coordinator.client.send_command.return_value = {"status": "accepted"}
-        
+
         service_manager = GardenaServiceManager(mock_hass)
-        
+
         # Create mock service call
         mock_call = Mock()
         mock_call.data = {"device_id": "test-device-1", "duration": 1800}
-        
+
         await service_manager._service_valve_open(mock_call)
-        
+
         # Verify command was sent
         mock_coordinator.client.send_command.assert_called_once()
         call_args = mock_coordinator.client.send_command.call_args[0]
         assert call_args[0] == "valve-service-1"
-        assert call_args[1]["attributes"]["command"] == "START_SECONDS_TO_OVERRIDE"
-        assert call_args[1]["attributes"]["seconds"] == 1800
+        assert call_args[1]["data"]["attributes"]["command"] == "START_SECONDS_TO_OVERRIDE"
+        assert call_args[1]["data"]["attributes"]["seconds"] == 1800
+
+    @pytest.mark.asyncio
+    async def test_valve_open_with_service_id(self, mock_hass, mock_coordinator):
+        """Test valve open service with explicit service_id."""
+        device = Mock(spec=GardenaDevice)
+        device.id = "device-uuid"
+        valve_service = Mock(spec=GardenaValveService)
+        valve_service.id = "device-uuid:2"
+        device.services = {"VALVE": [valve_service]}
+
+        mock_hass.data = {
+            "gardena_smart_system": {
+                "entry-1": mock_coordinator
+            }
+        }
+        mock_coordinator.get_device_by_id.return_value = device
+        mock_coordinator.client.send_command.return_value = {"status": "accepted"}
+
+        service_manager = GardenaServiceManager(mock_hass)
+
+        # Create mock service call with service_id directly
+        mock_call = Mock()
+        mock_call.data = {"service_id": "device-uuid:2", "duration": 1800}
+
+        await service_manager._service_valve_open(mock_call)
+
+        # Verify command was sent to the specified service_id
+        mock_coordinator.client.send_command.assert_called_once()
+        call_args = mock_coordinator.client.send_command.call_args[0]
+        assert call_args[0] == "device-uuid:2"
+        assert call_args[1]["data"]["attributes"]["command"] == "START_SECONDS_TO_OVERRIDE"
+
+    @pytest.mark.asyncio
+    async def test_valve_open_multi_valve_no_service_id(self, mock_hass, mock_coordinator):
+        """Test valve open errors on multi-valve device without service_id."""
+        device = Mock(spec=GardenaDevice)
+        device.id = "test-device-1"
+        valve1 = Mock(spec=GardenaValveService)
+        valve1.id = "test-device-1:1"
+        valve2 = Mock(spec=GardenaValveService)
+        valve2.id = "test-device-1:2"
+        device.services = {"VALVE": [valve1, valve2]}
+
+        mock_hass.data = {
+            "gardena_smart_system": {
+                "entry-1": mock_coordinator
+            }
+        }
+        mock_coordinator.get_device_by_id.return_value = device
+
+        service_manager = GardenaServiceManager(mock_hass)
+
+        mock_call = Mock()
+        mock_call.data = {"device_id": "test-device-1", "duration": 1800}
+
+        await service_manager._service_valve_open(mock_call)
+
+        # No command should be sent (ambiguous target)
+        mock_coordinator.client.send_command.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_service_device_not_found(self, mock_hass, mock_coordinator):
