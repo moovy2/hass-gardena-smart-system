@@ -31,7 +31,7 @@ Update the CHANGELOG.md file with the latest changes.
 
 5. Only include subsection headers that have entries.
 
-6. Reference issue numbers where applicable.
+6. **Always** reference issue/PR numbers when applicable (e.g. `(#351)`). This is critical — referenced tickets will be notified at release time.
 
 7. Write concise, user-facing descriptions (not commit messages).
 

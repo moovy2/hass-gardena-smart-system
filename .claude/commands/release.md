@@ -41,6 +41,13 @@ Tags use the bare version number without any prefix (no `v`):
 - `2.0.1-beta2` (not `v2.0.1-beta2`)
 - `2.0.1` (not `v2.0.1`)
 
+9. Comment on referenced issues/PRs to notify users that the fix or feature is now available:
+   - Parse the changelog section for issue references (e.g. `#351`, `#352`)
+   - For each referenced issue, post a comment:
+     ```
+     gh issue comment <number> --repo py-smart-gardena/hass-gardena-smart-system --body "This has been addressed in release <version>. Update via HACS to get the fix."
+     ```
+
 ## Notes
 
 - Always check existing tags with `git tag --list` to confirm the next version number.

@@ -10,4 +10,4 @@
 
 ## Changelog
 
-When making any functional change (feature, fix, breaking change, removal), update `CHANGELOG.md` under the `## [Unreleased]` section before committing. Use the `/changelog` skill or add entries manually following the format in the file.
+When making any functional change (feature, fix, breaking change, removal), update `CHANGELOG.md` under the `## [Unreleased]` section before committing. Always reference the related issue number (e.g. `#351`) so that users get notified at release time. Use the `/changelog` skill or add entries manually following the format in the file.
